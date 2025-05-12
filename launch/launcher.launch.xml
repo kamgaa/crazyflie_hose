@@ -1,0 +1,16 @@
+
+<!-- First Generated launcher for multi-agent trajectory tracking for Crazyflie 2.1 -->
+<!-- Edited by @kamggaa -->
+
+
+<launch>
+  <!-- Leader 노드 실행 -->
+  <node pkg="cmd" exec="leader_node" name="leader_node" output="screen" />
+
+  <!-- Follower 노드 실행 -->
+  <node pkg="cmd" exec="follower_node" name="follower_node" output="screen" />
+
+  <!-- CSV Decoder 노드 실행 -->
+  <!--node pkg="csv_decoder" exec="csv_decoder" name="csv_decoder_node" output="screen" -->
+</launch>
+
