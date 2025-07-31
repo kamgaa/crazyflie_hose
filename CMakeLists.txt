@@ -43,11 +43,22 @@ target_include_directories(follower_node PUBLIC
 target_compile_features(follower_node PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(follower_node rclcpp crazyflie_interfaces std_msgs Eigen3)
 
+# adm_node
+add_executable(adm_node src/adm_node.cpp)
+target_include_directories(adm_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(adm_node PUBLIC c_std_99 cxx_std_17)
+ament_target_dependencies(adm_node rclcpp crazyflie_interfaces std_msgs Eigen3)
+
 
 
 install(TARGETS follower_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS leader_node
+  DESTINATION lib/${PROJECT_NAME})
+  
+install(TARGETS adm_node
   DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 
