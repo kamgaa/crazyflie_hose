@@ -7,6 +7,8 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include "crazyflie_interfaces/msg/position.hpp"
 #include "std_msgs/msg/int32.hpp"
+#include "crazyflie_interfaces/srv/arm.hpp"
+
 
 using namespace std::chrono_literals;
 
@@ -15,6 +17,16 @@ class Cmd_Position_Publisher : public rclcpp::Node
 public:
     Cmd_Position_Publisher() : Node("leader_node"), time_cnt(0.0), time_real(0.0), step_idx(0), triggered(false)
     {
+        arm_client_ = this->create_client<crazyflie_interfaces::srv::Arm>("/cf01/arm");
+        if (!arm_client_->wait_for_service(3s)) {
+            //RCLCPP_ERROR(this->get_logger(), "Arm 서비스가 준비되지 않았습니다!");
+            rclcpp::shutdown();
+            return;
+        }
+        sendArmRequest(true);                // 즉시 Arm
+        arm_called_time_ = this->now();      // Arm 호출 시각 저장
+        
+        
         cmd_position_publisher_leader = this->create_publisher<crazyflie_interfaces::msg::Position>("/cf01/cmd_position", 10);
         pose_heading_publisher_leader = this->create_publisher<geometry_msgs::msg::PoseStamped>("/cf01/pose_heading", 10);
         trigger_publisher_leader = this->create_publisher<std_msgs::msg::Int32>("/csv_trigger", 10);
@@ -30,6 +42,19 @@ public:
     }
 
 private:
+    void sendArmRequest(bool arm)
+    {
+        auto req = std::make_shared<crazyflie_interfaces::srv::Arm::Request>();
+        req->arm = arm;
+        auto fut = arm_client_->async_send_request(req);
+        if (fut.wait_for(2s) == std::future_status::ready) {
+            RCLCPP_INFO(this->get_logger(), arm ? "→ Drone armed." : "→ Drone disarmed.");
+        } else {
+            RCLCPP_ERROR(this->get_logger(), "Arm 서비스 호출 실패");
+        }
+    }
+
+    
     void goal_callback(const geometry_msgs::msg::Pose::SharedPtr msg)
     {
         if (triggered)
@@ -50,68 +75,35 @@ private:
     {
         time_cnt++;
         time_real = time_cnt * 0.01;
+        
+        const double arm_delay = (this->now() - arm_called_time_).seconds();
 
-        // 호버링 로직 (5초간)
-        if (time_real < 1.0) global_xyz_cmd[2] = -0.05;
-        else if (time_real > 1.5)
+        if (time_real < 1.0)global_xyz_cmd[2] = 0.0;
+        
+        else if (time_real > 2.0)
         {
-            if(global_xyz_cmd[2]<0.6)
+            if(global_xyz_cmd[2] < 1.0)
             {
-                global_xyz_cmd[2]=global_xyz_cmd[2]+0.01;
-                global_xyz_cmd[0]=0;
-                global_xyz_cmd[1]=0;
+                
+                global_xyz_cmd[0] = 0.0; // x command
+                global_xyz_cmd[1] = 0.0; // y command
+                global_xyz_cmd[2] += 0.01; // z command (up)
             }
-            else global_xyz_cmd[2]=0.6;
+            else global_xyz_cmd[2] = 1.0;
         }
-        
-        if (time_real>7 && step_idx <= 205) {
-            global_xyz_cmd[0] = step_idx * 0.005;
-            global_xyz_cmd[2] = 0.6;
-            step_idx++;
-        }
-        /*else if (time_real < 1.1) global_xyz_cmd[2] = 0.05;
-        else if (time_real < 1.2) global_xyz_cmd[2] = 0.1;
-        else if (time_real < 1.3) global_xyz_cmd[2] = 0.125;
-        else if (time_real < 1.4) global_xyz_cmd[2] = 0.15;
-        else if (time_real < 1.5) global_xyz_cmd[2] = 0.2;
-        else if (time_real < 1.6) global_xyz_cmd[2] = 0.25;
-
-        else if (time_real < 1.7) global_xyz_cmd[2] = 0.3;
-        else if (time_real < 1.8) global_xyz_cmd[2] = 0.35;
-        else if (time_real < 1.9) global_xyz_cmd[2] = 0.4;
-        else if (time_real < 2.0) global_xyz_cmd[2] = 0.5;
-        else if (time_real < 2.1) global_xyz_cmd[2] = 0.6;
-        
-        else if (time_real >= 2.1 && time_real < 3.1) {
-        	global_xyz_cmd[2] = 0.6;
-        	global_xyz_cmd[0] = 0.0;  // x 고정
-    	}*/
-
-    // 고도 유지 후 x 방향으로 1미터 전진
-    	/*if (step_idx <= 100&&time_real > 7.0) {
-        	global_xyz_cmd[2] = 0.6;
-        	
-        	if (global_xyz_cmd[0] < 1.0){
-        	global_xyz_cmd[0]=global_xyz_cmd[0]+0.01;
-        	
-        	}
-        	else if (global_xyz_cmd[0] == 1.0)  global_xyz_cmd[0]=1.0;
-            global_xyz_cmd[0] = step_idx * 0.01;
-            global_xyz_cmd[2] = 0.6;
-            step_idx++;
-   	}*/
-        
-        //else if (time_real > 7.5) global_xyz_cmd[2] = 0.6; // 고도 유지 (hover)
-	// 착륙은???????????코드 반영할것, follower node 에도 똑같이 반영할것!!!
-        // 5초 이후부터 goal 명령 반영
-        else if (triggered == false && std::abs(actual_pose.position.x - 1.0) < 0.05 && std::abs(actual_pose.position.y) < 0.01) {
+        if (triggered == false && time_real>7.0)
+        {
             std_msgs::msg::Int32 msg;
             msg.data = 1111;
             triggered = true;
             trigger_publisher_leader->publish(msg);
 
-            RCLCPP_INFO(this->get_logger(), "Leader reached 1.0 (actual), sent trigger 1111");
+            RCLCPP_INFO(this->get_logger(), "cf01 GO");
+        
+        
+        
         }
+        
         
         // 목표 명령 퍼블리시
         crazyflie_interfaces::msg::Position global_xyz_cmd_msg;
@@ -131,7 +123,7 @@ private:
         pose_msg.pose.orientation.z = global_xyz_cmd[3];  // yaw 단일 저장
         pose_heading_publisher_leader->publish(pose_msg);
 
-        RCLCPP_INFO(this->get_logger(), "%lf, %lf %lf %lf triggered: %d", time_real, actual_pose.position.x,actual_pose.position.y,actual_pose.position.z,triggered ? 1 : 0);
+        RCLCPP_INFO(this->get_logger(), "%f, %f %f triggered: %d", actual_pose.position.x,actual_pose.position.y,actual_pose.position.z, triggered ? 1:0);
 
         
     }
@@ -146,17 +138,18 @@ private:
 
     rclcpp::Publisher<crazyflie_interfaces::msg::Position>::SharedPtr cmd_position_publisher_leader;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_heading_publisher_leader;
-        rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr trigger_publisher_leader;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr trigger_publisher_leader;
     rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr goal_subscriber_leader;
     rclcpp::TimerBase::SharedPtr command_loop_timer_leader;
-        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr state_subscriber_leader;
-
-    Eigen::VectorXd global_xyz_cmd;
-    geometry_msgs::msg::Pose actual_pose;
-    double time_cnt;
-    double time_real;
-    int step_idx;
-    bool triggered;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr state_subscriber_leader;
+    rclcpp::Client<crazyflie_interfaces::srv::Arm>::SharedPtr arm_client_;
+    rclcpp::Time arm_called_time_;
+    Eigen::VectorXd 		global_xyz_cmd;
+    geometry_msgs::msg::Pose 	actual_pose;
+    double 			time_cnt;
+    double 			time_real;
+    int 			step_idx;
+    bool 			triggered;
 };
 
 int main(int argc, char * argv[])
