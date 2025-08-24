@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)                    # add
 find_package(crazyflie_interfaces REQUIRED)      # add
 find_package(Eigen3 REQUIRED)                    # add
 find_package(std_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -33,7 +34,7 @@ target_include_directories(leader_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(leader_node PUBLIC c_std_99 cxx_std_17)
-ament_target_dependencies(leader_node rclcpp crazyflie_interfaces std_msgs Eigen3)
+ament_target_dependencies(leader_node rclcpp builtin_interfaces crazyflie_interfaces std_msgs Eigen3)
 
 # follower_node
 add_executable(follower_node src/follower_node.cpp)
@@ -41,7 +42,7 @@ target_include_directories(follower_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(follower_node PUBLIC c_std_99 cxx_std_17)
-ament_target_dependencies(follower_node rclcpp crazyflie_interfaces std_msgs Eigen3)
+ament_target_dependencies(follower_node rclcpp builtin_interfaces crazyflie_interfaces std_msgs Eigen3)
 
 # adm_node
 add_executable(adm_node src/adm_node.cpp)
@@ -51,6 +52,13 @@ target_include_directories(adm_node PUBLIC
 target_compile_features(adm_node PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(adm_node rclcpp crazyflie_interfaces std_msgs Eigen3)
 
+# Hovering syncronize Node
+add_executable(hover_sync_node src/hover_sync_node.cpp)
+target_include_directories(hover_sync_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(hover_sync_node PUBLIC c_std_99 cxx_std_17)
+ament_target_dependencies(hover_sync_node rclcpp builtin_interfaces crazyflie_interfaces std_msgs Eigen3)
 
 
 install(TARGETS follower_node
@@ -59,6 +67,8 @@ install(TARGETS leader_node
   DESTINATION lib/${PROJECT_NAME})
   
 install(TARGETS adm_node
+  DESTINATION lib/${PROJECT_NAME})
+install(TARGETS hover_sync_node
   DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}/)
 
