@@ -20,6 +20,13 @@ def generate_launch_description():
         ),
         Node(
             package='cmd',
+            executable='end_node',
+            name='end_node',
+            output='screen'
+        ),
+
+        Node(
+            package='cmd',
             executable='hover_sync_node',
             name='hover_sync_node',
             output='screen'
