@@ -17,6 +17,13 @@ def generate_launch_description():
             executable='follower_node',
             name='follower_node',
             output='screen'
-        )
+        ),
+        Node(
+            package='cmd',
+            executable='hover_sync_node',
+            name='hover_sync_node',
+            output='screen'
+        ),
+
     ])
 
