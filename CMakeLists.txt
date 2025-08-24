@@ -44,6 +44,15 @@ target_include_directories(follower_node PUBLIC
 target_compile_features(follower_node PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(follower_node rclcpp builtin_interfaces crazyflie_interfaces std_msgs Eigen3)
 
+# end_node
+add_executable(end_node src/end_node.cpp)
+target_include_directories(end_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(end_node PUBLIC c_std_99 cxx_std_17)
+ament_target_dependencies(end_node rclcpp builtin_interfaces crazyflie_interfaces std_msgs Eigen3)
+
+
 # adm_node
 add_executable(adm_node src/adm_node.cpp)
 target_include_directories(adm_node PUBLIC
@@ -65,7 +74,10 @@ install(TARGETS follower_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS leader_node
   DESTINATION lib/${PROJECT_NAME})
-  
+install(TARGETS end_node
+  DESTINATION lib/${PROJECT_NAME})
+ 
+
 install(TARGETS adm_node
   DESTINATION lib/${PROJECT_NAME})
 install(TARGETS hover_sync_node
